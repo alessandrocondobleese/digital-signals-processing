@@ -14,6 +14,10 @@ pydub = "^0.25.1"
 matplotlib = "^3.9.3"
 scipy = "^1.14.1"
 pygame = "^2.6.1"
+vegafusion-python-embed = "1.5.0"
+vegafusion = "1.5.0"
+moviepy = "^2.1.1"
+opencv-python = "^4.10.0.84"
 
 
 [build-system]

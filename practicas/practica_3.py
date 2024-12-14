@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.9.21"
-app = marimo.App(width="medium")
+__generated_with = "0.9.32"
+app = marimo.App(width="medium", auto_download=["html"])
 
 
 @app.cell
@@ -30,7 +30,7 @@ def __(alt, pd):
         signal_dataframe = pd.DataFrame({"time": time, "amplitude": signal})
         signal_chart = (
             alt.Chart(signal_dataframe)
-            .mark_line()
+            .mark_line(size=3)
             .encode(
                 x=alt.X("time:O", title="Time", axis=alt.Axis(labels=False)),
                 y=alt.Y("amplitude:Q", title="Amplitude"),
@@ -49,13 +49,13 @@ def __(alt, dft, np, pd):
             signal_fourier_frequencies_spectrum
         )
 
-        positive_frequencies = signal_fourier_frequencies_spectrum > 0
-        signal_fourier_frequencies_spectrum = signal_fourier_frequencies_spectrum[
-            positive_frequencies
-        ]
+        sample_frequencies = np.fft.fftfreq(time.size, d=(time[1] - time[0]))
 
-        sample_frequencies = np.fft.fftfreq(time.size)
-        sample_frequencies = sample_frequencies[positive_frequencies]
+        positive_indices = sample_frequencies >= 0
+        sample_frequencies = sample_frequencies[positive_indices]
+        signal_fourier_frequencies_spectrum = signal_fourier_frequencies_spectrum[
+            positive_indices
+        ]
 
         signal_frequencies_dataframe = pd.DataFrame(
             {
@@ -84,61 +84,30 @@ def __(alt, dft, np, pd):
 
 
 @app.cell
-def __(np):
+def __(mo, np):
     def dft(x):
-        """The Discrete Fourier Transform
-
-        Parameters
-        ----------
-        x : np.ndarray
-            The input signal
-
-        Returns
-        -------
-        X : np.ndarray, same shape as x
-            The DFT sequence: X[m] corresponds to analysis frequency index m
-        """
-
-        # Get the number of samples = number of frequencies
         N = len(x)
 
-        # Allocate the output array
         X = np.zeros(N, dtype=complex)
 
-        # For each analysis frequency
         for m in range(N):
-            # For each sample
             for n in range(N):
-                # Compare to cos and -sin at this frequency
                 X[m] = X[m] + x[n] * (
                     np.cos(2 * np.pi * m / N * n)
                     - 1j * np.sin(2 * np.pi * m / N * n)
                 )
-        # Return the DFT array
+
         return X
+
+    mo.show_code()
     return (dft,)
 
 
 @app.cell
 def __(np, signal):
-    impulse_time = np.linspace(0, 1, 500)
+    impulse_time = np.linspace(0, 1, 50)
     impulse = signal.unit_impulse(impulse_time.size)
     return impulse, impulse_time
-
-
-@app.cell
-def __(
-    get_signal_chart,
-    get_signal_frequencies_chart,
-    impulse,
-    impulse_time,
-    mo,
-):
-    mo.ui.altair_chart(
-        get_signal_chart(impulse, impulse_time)
-        & get_signal_frequencies_chart(impulse, impulse_time)
-    )
-    return
 
 
 @app.cell
@@ -149,40 +118,10 @@ def __(np, signal):
 
 
 @app.cell
-def __(
-    get_signal_chart,
-    get_signal_frequencies_chart,
-    mo,
-    sawtooth,
-    sawtooth_time,
-):
-    mo.ui.altair_chart(
-        get_signal_chart(sawtooth, sawtooth_time)
-        & get_signal_frequencies_chart(sawtooth, sawtooth_time)
-    )
-    return
-
-
-@app.cell
 def __(np, signal):
     square_time = np.linspace(0, 1, 500)
     square = signal.square(2 * np.pi * 5 * square_time)
     return square, square_time
-
-
-@app.cell
-def __(
-    get_signal_chart,
-    get_signal_frequencies_chart,
-    mo,
-    square,
-    square_time,
-):
-    mo.ui.altair_chart(
-        get_signal_chart(square, square_time)
-        & get_signal_frequencies_chart(square, square_time)
-    )
-    return
 
 
 @app.cell
@@ -193,21 +132,6 @@ def __(np, signal):
 
 
 @app.cell
-def __(
-    chirp,
-    chirp_time,
-    get_signal_chart,
-    get_signal_frequencies_chart,
-    mo,
-):
-    mo.ui.altair_chart(
-        get_signal_chart(chirp, chirp_time)
-        & get_signal_frequencies_chart(chirp, chirp_time)
-    )
-    return
-
-
-@app.cell
 def __(np, signal):
     gausspulse_time = np.linspace(0, 1, 500, endpoint=False)
     gausspulse = signal.gausspulse(gausspulse_time, fc=5)
@@ -215,16 +139,163 @@ def __(np, signal):
 
 
 @app.cell
+def __(mo):
+    sin_amplitude_range_slider = mo.ui.slider(
+        label="Amplitud",
+        start=0,
+        value=1,
+        stop=10,
+        full_width=True,
+        show_value=True,
+    )
+    return (sin_amplitude_range_slider,)
+
+
+@app.cell
+def __(mo):
+    sin_frequency_range_slider = mo.ui.slider(
+        label="Frecuencia", start=1, stop=10, full_width=True, show_value=True
+    )
+    return (sin_frequency_range_slider,)
+
+
+@app.cell
+def __(mo):
+    sin_phase_range_slider = mo.ui.slider(
+        label="Fase", start=1, stop=10, full_width=True, show_value=True
+    )
+    return (sin_phase_range_slider,)
+
+
+@app.cell
+def __(mo):
+    sin_sampling_frequency_number = mo.ui.number(
+        label="Frecuencia de muestreo",
+        start=2,
+        full_width=True,
+    )
+    return (sin_sampling_frequency_number,)
+
+
+@app.cell
 def __(
-    gausspulse,
-    gausspulse_time,
+    mo,
+    np,
+    sin_amplitude_range_slider,
+    sin_frequency_range_slider,
+    sin_phase_range_slider,
+    sin_sampling_frequency_number,
+):
+    sin_sinusoide_time = np.linspace(
+        0, 1, int(sin_sampling_frequency_number.value * 1), endpoint=False
+    )
+    sin_sinusoide = sin_amplitude_range_slider.value * np.sin(
+        2 * np.pi * sin_frequency_range_slider.value * sin_sinusoide_time
+        + np.pi / sin_phase_range_slider.value
+    )
+
+    mo.show_code()
+    return sin_sinusoide, sin_sinusoide_time
+
+
+@app.cell
+def __(mo):
+    cosine_amplitude_range_slider = mo.ui.slider(
+        label="Amplitud",
+        start=0,
+        value=1,
+        stop=10,
+        full_width=True,
+        show_value=True,
+    )
+
+    cosine_frequency_range_slider = mo.ui.slider(
+        label="Frecuencia", start=1, stop=10, full_width=True, show_value=True
+    )
+
+    cosine_phase_range_slider = mo.ui.slider(
+        label="Fase", start=1, stop=10, full_width=True, show_value=True
+    )
+    return (
+        cosine_amplitude_range_slider,
+        cosine_frequency_range_slider,
+        cosine_phase_range_slider,
+    )
+
+
+@app.cell
+def __(
+    cosine_amplitude_range_slider,
+    cosine_frequency_range_slider,
+    cosine_phase_range_slider,
+    mo,
+    np,
+    sin_sampling_frequency_number,
+):
+    cosine_sinusoide_time = np.linspace(
+        0, 1, int(sin_sampling_frequency_number.value * 1), endpoint=False
+    )
+    cosine_sinusoide = cosine_amplitude_range_slider.value * np.cos(
+        2 * np.pi * cosine_frequency_range_slider.value * cosine_sinusoide_time
+        + np.pi / cosine_phase_range_slider.value
+    )
+
+    mo.show_code()
+    return cosine_sinusoide, cosine_sinusoide_time
+
+
+@app.cell
+def __(
+    cosine_amplitude_range_slider,
+    cosine_frequency_range_slider,
+    cosine_phase_range_slider,
+    cosine_sinusoide,
     get_signal_chart,
     get_signal_frequencies_chart,
     mo,
+    sin_amplitude_range_slider,
+    sin_frequency_range_slider,
+    sin_phase_range_slider,
+    sin_sampling_frequency_number,
+    sin_sinusoide,
+    sin_sinusoide_time,
 ):
-    mo.ui.altair_chart(
-        get_signal_chart(gausspulse, gausspulse_time)
-        & get_signal_frequencies_chart(gausspulse, gausspulse_time)
+    mo.vstack(
+        [
+            mo.hstack(
+                [
+                    mo.md(
+                        f"""
+                        ## Componente seno
+                        {sin_amplitude_range_slider}
+                        {sin_frequency_range_slider}
+                        {sin_phase_range_slider}
+                        {sin_sampling_frequency_number}
+                        """
+                    ).callout(),
+                    mo.md(
+                        f"""
+                        ## Componente coseno
+                        {cosine_amplitude_range_slider}
+                        {cosine_frequency_range_slider}
+                        {cosine_phase_range_slider}
+                        {sin_sampling_frequency_number}
+                        """
+                    ).callout(),
+                ],
+                widths="equal",
+            ),
+            mo.ui.altair_chart(
+                get_signal_chart(
+                    sin_sinusoide + cosine_sinusoide, sin_sinusoide_time
+                )
+            ),
+            mo.ui.altair_chart(
+                get_signal_frequencies_chart(
+                    sin_sinusoide + cosine_sinusoide, sin_sinusoide_time
+                )
+            ),
+        ]
     )
     return
 

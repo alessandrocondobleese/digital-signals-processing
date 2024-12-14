@@ -1,7 +1,15 @@
 import marimo
 
-__generated_with = "0.9.21"
+__generated_with = "0.9.32"
 app = marimo.App(width="medium")
+
+
+@app.cell
+def __(mo, numpy):
+    time = numpy.linspace(0, 1, 1000)
+
+    mo.show_code()
+    return (time,)
 
 
 @app.cell
@@ -19,19 +27,9 @@ def __(frequency_number):
 
 
 @app.cell
-def __(mo, numpy):
-    time = numpy.linspace(0, 1, 1000)
-
-    mo.show_code()
-    return (time,)
-
-
-@app.cell
-def __(frequency, mo):
+def __(frequency):
     signal_frequency = frequency
     signal_amplitude = 1
-
-    mo.show_code()
     return signal_amplitude, signal_frequency
 
 
@@ -62,10 +60,8 @@ def __(sample_frequency_number):
 
 
 @app.cell
-def __(mo, numpy, sample_frequency):
+def __(numpy, sample_frequency):
     discrete_time = numpy.arange(0, 1, 1 / sample_frequency)
-
-    mo.show_code()
     return (discrete_time,)
 
 
